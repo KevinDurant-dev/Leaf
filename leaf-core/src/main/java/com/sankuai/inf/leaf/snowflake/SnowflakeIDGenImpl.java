@@ -60,9 +60,9 @@ public class SnowflakeIDGenImpl implements IDGen {
     @Override
     public synchronized Result get(String key) {
         long timestamp = timeGen();
-        if (timestamp < lastTimestamp) {
+        if (timestamp < lastTimestamp) {   //发生了时钟回拨 
             long offset = lastTimestamp - timestamp;
-            if (offset <= 5) {
+            if (offset <= 5) {   //小于5ms  等待  
                 try {
                     wait(offset << 1);
                     timestamp = timeGen();
@@ -74,12 +74,12 @@ public class SnowflakeIDGenImpl implements IDGen {
                     return new Result(-2, Status.EXCEPTION);
                 }
             } else {
-                return new Result(-3, Status.EXCEPTION);
+                return new Result(-3, Status.EXCEPTION);  // 向上抛异常
             }
         }
         if (lastTimestamp == timestamp) {
             sequence = (sequence + 1) & sequenceMask;
-            if (sequence == 0) {
+            if (sequence == 0) { //为0表示  这个毫秒的ID已经满了  到下一毫秒中选择 
                 //seq 为0的时候表示是下一毫秒时间开始对seq做随机
                 sequence = RANDOM.nextInt(100);
                 timestamp = tilNextMillis(lastTimestamp);
@@ -91,7 +91,6 @@ public class SnowflakeIDGenImpl implements IDGen {
         lastTimestamp = timestamp;
         long id = ((timestamp - twepoch) << timestampLeftShift) | (workerId << workerIdShift) | sequence;
         return new Result(id, Status.SUCCESS);
-
     }
 
     protected long tilNextMillis(long lastTimestamp) {
